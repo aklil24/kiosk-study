@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiosk Study – Team 2</title>
+<!--
+  Self-ordering kiosk prototype – UX & Usability, Team 2
+  A = HIERARCHICAL (like McDonald's): Category → Subcategory → Product → Single/Set → Side → Drink → Customize
+  B = LINEAR (like Subway):          fixed steps 1 Burger → 2 Customize → 3 Meal → 4 Side → 5 Drink → 6 Dessert → 7 Review
+  C = FLAT (like a café kiosk):       all 24 products on one screen, all options in one pop-up, cart always visible
+  Same menu, same prices, same start screen (Eat in / Take out) and same end point (Pay) in all three.
+-->
+<style>
+  :root{--brand:#16727A;--brandD:#0F5A60;--ink:#13283B;--muted:#5B6B78;--line:#DDE5EA;--bg:#F5F8F9;--soft:#EEF5F5;--yellow:#FFC72C;--red:#D2462B;--note:#FFF4D6}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;line-height:1.4}
+  button{font:inherit;cursor:pointer;border:0;border-radius:12px;color:inherit}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px}
+  h1{font-size:24px;margin:0}h2{font-size:20px;margin:0 0 10px}
+  .muted{color:var(--muted)}.small{font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{padding:12px 20px;font-weight:700}
+  .primary{background:var(--brand);color:#fff}.ghost{background:#fff;border:1px solid var(--line)}.danger{background:#fff;border:1px solid #e9b9aa;color:var(--red)}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}.field label{font-weight:700;font-size:14px}
+  input,select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px}
+  .lang button{padding:6px 12px;background:#fff;border:1px solid var(--line)}.lang .on{background:var(--ink);color:#fff}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--brandD);font-weight:700;font-size:13px}
+  .task-box{background:var(--note);border:1px solid #E0A100;border-radius:14px;padding:18px;font-size:20px;font-weight:700;margin:12px 0}
+  .study{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+  .study .task-box{font-size:17px;margin-top:0;position:sticky;top:12px}
+
+  /* ================= KIOSK (portrait, like a real floor kiosk) ================= */
+  .device{width:100%;max-width:560px;margin:0 auto;background:#1d2730;border-radius:30px;padding:16px 14px 22px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .screen{background:#fff;border-radius:14px;height:880px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .k-top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--brand);color:#fff}
+  .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px}
+  .logo i{font-style:normal;background:var(--yellow);color:var(--ink);border-radius:8px;width:30px;height:30px;display:grid;place-items:center}
+  .k-top .tb{display:flex;gap:6px}.k-top .tb button{background:rgba(255,255,255,.18);padding:6px 10px;font-size:13px;font-weight:700}
+  .k-sub{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:var(--soft);font-size:13px;color:var(--brandD);font-weight:700}
+  .crumb{color:var(--muted);font-weight:600}
+  .k-body{flex:1;overflow:auto;padding:14px}
+  .k-title{font-size:22px;font-weight:800;margin:4px 0 12px}
+  .k-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--ink);color:#fff}
+  .k-bar .sum{flex:1}.k-bar .sum b{font-size:18px;display:block}
+  .k-bar button{padding:14px 18px;font-weight:800}
+  .pay{background:var(--yellow);color:var(--ink)}.nav{background:rgba(255,255,255,.15);color:#fff}
+  .grid{display:grid;gap:10px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  .prod{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;text-align:center}
+  .prod:hover{border-color:var(--brand)}
+  .pic{width:72px;height:72px;border-radius:50%;background:#FFF3D1;display:grid;place-items:center;font-size:40px}
+  .prod .nm{font-weight:700;font-size:14px;line-height:1.2}.prod .pr{font-size:13px;color:var(--muted)}
+  .tag{position:absolute;top:6px;left:6px;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--red);color:#fff}
+  .tag.new{background:var(--brand)}
+  .cat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:190px;justify-content:center}
+  .cat .pic{width:110px;height:110px;font-size:60px}.cat b{font-size:20px}
+  .choice{background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .choice.on{border-color:var(--brand);background:var(--soft)}
+  .choice .pic{width:60px;height:60px;font-size:32px}
+  .big2 .choice{padding:24px}.big2 .choice .pic{width:110px;height:110px;font-size:56px}.big2 .choice b{font-size:20px}
+  .sect{font-weight:800;margin:14px 0 6px;font-size:15px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:9px 13px;background:#fff;border:1.5px solid var(--line);border-radius:999px;font-size:14px}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .chip.rm.on{background:var(--red);border-color:var(--red)}
+  .hero{display:flex;gap:14px;align-items:center;margin-bottom:10px}.hero .pic{width:96px;height:96px;font-size:54px}
+  .line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .line small{display:block;color:var(--muted);font-size:12px}
+  .qty{display:flex;align-items:center;gap:6px}.qty button{width:30px;height:30px;border-radius:50%;background:var(--soft);font-weight:800}
+  .x{background:none;color:var(--red);font-weight:800;padding:2px 6px}
+  .steps{display:flex;gap:3px;padding:8px 10px;background:var(--soft)}
+  .st{flex:1;text-align:center;font-size:11px;font-weight:700;padding:6px 2px;border-radius:7px;background:#fff;color:#9aa8b3}
+  .st.now{background:var(--brand);color:#fff}.st.done{background:#cfe6e6;color:var(--brandD)}
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;background:linear-gradient(180deg,#fff 0,#FFF3D1 100%)}
+  .welcome .w{font-size:30px;font-weight:800;text-align:center}
+  .welcome .grid{max-width:460px}
+  .toast{position:absolute;left:50%;top:96px;z-index:9;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px}
+  .modal-bg{position:absolute;inset:0;background:rgba(19,40,59,.5);display:flex;align-items:flex-end;z-index:5}
+  .sheet{background:#fff;border-radius:18px 18px 0 0;padding:18px;width:100%;max-height:92%;overflow:auto}
+  .flatsec{font-weight:800;font-size:14px;margin:8px 0 4px;color:var(--brandD);border-bottom:2px solid var(--soft);padding-bottom:2px}
+  .flat .prod{padding:6px 4px}.flat .pic{width:48px;height:48px;font-size:26px}.flat .nm{font-size:12px}.flat .pr{font-size:11px}
+  .cartbox{border-top:2px solid var(--line);padding:8px 14px;max-height:200px;overflow:auto;background:#fff}
+  .cartbox .line{padding:5px 0;font-size:13px}
+  /* survey */
+  .qblock{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0;background:#fff}
+  .qblock h3{margin:0 0 4px;font-size:16px}
+  .qrow{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .qrow:last-child{border-bottom:0}.qt{flex:1;min-width:260px}.qn{display:inline-block;width:24px;font-weight:800;color:var(--brand)}
+  .scale{display:flex;gap:4px;width:100%;max-width:470px}
+  .scale label{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;cursor:pointer;border:1.5px solid var(--line);border-radius:10px;padding:5px 2px;background:#fff}
+  .scale.wide{max-width:560px}
+  .scale label.on{border-color:var(--brand);background:var(--soft)}
+  .scale input{position:absolute;opacity:0;pointer-events:none}
+  .scale b{font-size:16px}.scale span{font-size:10px;color:var(--muted);text-align:center;line-height:1.15;min-height:12px}
+  .scale .na{background:#f3f3f3}
+  .cards{display:flex;flex-wrap:wrap;gap:8px}
+  .card-w{padding:9px 14px;border:1.5px solid var(--line);border-radius:999px;background:#fff}.card-w.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .mods{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:14px}
+  .dtab{border-collapse:collapse;width:100%;font-size:13px}.dtab th{background:var(--brand);color:#fff;text-align:left;padding:6px 8px}.dtab td{border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap}
+  textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px}
+  html,body{overflow-x:hidden}
+  img,table{max-width:100%}
+  @media (max-width:950px){.study{grid-template-columns:1fr}.study .task-box{position:static}}
+  /* ===== phone ===== */
+  @media (max-width:600px){
+    .wrap{padding:10px}
+    .card{padding:16px;border-radius:14px}
+    h1{font-size:19px}h2{font-size:18px}
+    .top{flex-wrap:wrap;gap:8px}
+    .task-box{font-size:16px;padding:12px}
+    .grid.g3{grid-template-columns:1fr}                 /* setup fields under each other */
+    .mods{grid-template-columns:1fr}
+    .qrow{flex-direction:column;align-items:stretch;gap:8px}
+    .qt{min-width:0}
+    .scale{max-width:none}
+    .scale label{padding:6px 1px}
+    .scale b{font-size:15px}.scale span{font-size:9px}
+    .scale.wide span{display:none}                       /* NPS 0–10: numbers only, end labels are in the hint line */
+    .btn{width:100%;margin-top:6px}
+    .row .btn.small{width:auto}
+    /* kiosk */
+    .device{padding:8px 6px 12px;border-radius:20px}
+    .screen{height:calc(100vh - 160px);min-height:560px;border-radius:12px}
+    .welcome{padding:18px}.welcome .w{font-size:22px}
+    .welcome .grid.g2{grid-template-columns:1fr}         /* Eat in / Take out under each other */
+    .welcome .cat{min-height:120px;flex-direction:row;gap:16px}
+    .welcome .cat .pic{width:70px;height:70px;font-size:38px}
+    .k-body .grid.g3{grid-template-columns:repeat(2,1fr)}
+    .k-body .grid.g4{grid-template-columns:repeat(2,1fr)}
+    .flat .grid.g4{grid-template-columns:repeat(3,1fr)}
+    .cat{min-height:130px;padding:12px}.cat .pic{width:70px;height:70px;font-size:38px}.cat b{font-size:17px}
+    .big2 .choice{padding:14px}.big2 .choice .pic{width:70px;height:70px;font-size:36px}
+    .k-top{padding:8px 10px}.logo{font-size:15px}.k-top .tb button{padding:5px 7px;font-size:11px}
+    .k-bar{padding:8px 10px;gap:6px}.k-bar button{padding:11px 12px;font-size:14px}.k-bar .sum b{font-size:15px}
+    .k-title{font-size:18px}
+    .st{font-size:9px;padding:5px 1px}
+    .line{flex-wrap:wrap}
+    .hero .pic{width:64px;height:64px;font-size:34px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+/* =========================================================================
+   0. CONFIG
+   REMOTE_URL empty  → LAB mode (researcher chooses ID, data stays on this device, PIN data page)
+   REMOTE_URL filled → ONLINE mode (link for participants at home, ID automatic, data → Google Sheet)
+   Paste the Google Apps Script "Web app URL" between the quotes:
+   ========================================================================= */
+const REMOTE_URL = 'https://script.google.com/macros/s/AKfycbzQRQRBCzapkWkmnYJd8Sx3X1NxO_JFj4TcA5JdrUq3f1kKDEMw0bklqxRi17vkA7Vfew/exec';
+const REMOTE = !!REMOTE_URL;
+/* =========================================================================
+   1. TEXTS (English + Korean)
+   ========================================================================= */
+const TEXT = {
+ en:{title:'Kiosk Study – Team 2', setup:'Researcher setup', pid:'Participant ID', order:'Interface order', setOrder:'Task set order',
+  consent:'Participant has given informed consent', start:'Start study', resume:'A saved session was found.', continue:'Continue', reset:'Delete saved data',
+  intro:'Interface', introText:'You will now complete 3 ordering tasks with this kiosk. Please order as you normally would. Time starts when you press “Start task” and ends when you press “Pay”.',
+  go:'Go to first task', task:'Task', startTask:'Start task', skip:'Researcher: end task as failed', taskHint:'Your task',
+  shop:'HY Burger', touch:'Where will you eat today?', eatIn:'Eat in', takeOut:'Take out', cancelOrder:'Cancel order', home:'Home', back:'Back', next:'Next', skipStep:'Skip',
+  items:'items', total:'Total', viewOrder:'View order', pay:'Pay', review:'Check your order', empty:'Your order is empty.', addMore:'+ Add more',
+  burger:'Burgers', side:'Sides', drink:'Drinks', dessert:'Desserts', beef:'Beef', chicken:'Chicken', special:'Specials', soda:'Soft drinks', coffee:'Coffee', juice:'Juice',
+  single:'Single', set:'Set', setInfo:'Burger + side + drink', chooseKind:'Single or set?', chooseSide:'Choose your side', chooseDrink:'Choose your drink',
+  customize:'Customize your burger', remove:'Remove', addExtra:'Add extra', size:'Size', temp:'Temperature', hot:'Hot', iced:'Iced', qty:'Quantity',
+  add:'Add to order', added:'Added to order', cancel:'Cancel', options:'Options',
+  b1:'Burger', b2:'Customize', b3:'Meal', b4:'Side', b5:'Drink', b6:'Dessert', b7:'Review',
+  pickBurger:'Step 1 – Choose your burger', addSide:'Would you like to add a side?', addDrink:'Would you like to add a drink?', addDessert:'Would you like to add a dessert?',
+  anotherMenu:'+ Add another burger', without:'no', extra:'extra', eatInL:'Eat in', takeOutL:'Take out',
+  rTitle:'Kiosk Ordering Study', rIntro:'Thank you for helping with our university study (UX & Usability, Hanyang University ERICA, Team 2). You will order food with three different self-ordering kiosks (3 short tasks each) and answer short questionnaires. This takes about 25–30 minutes.',
+  rTips:'Please: do it in one go without breaks · use the same device the whole time · there is no real payment · it is not a test of you, we test the kiosks.',
+  rConsent:'I agree to take part. My answers and my taps are recorded anonymously and are only used for this university project. I can stop at any time.',
+  rStart:'Start', rWait:'Connecting …', rErr:'Connection problem. Please check your internet and try again.', rSending:'Saving your answers … please do not close this page.',
+  rSent:'Your answers have been saved.', rRetry:'Try again', rAlready:'You have already completed this study on this device. Thank you!', giveUp:'I can’t complete this task',
+  preTitle:'About you', finalTitle:'Final questions – all three kiosks',
+  survey:'Questionnaire', susIntro:'Please answer the questions about the kiosk you just used. There are no right or wrong answers.', sd:'Strongly disagree', sa:'Strongly agree',
+  satQ:'Overall, how satisfied are you with this kiosk?', submit:'Submit', fillAll:'Please answer all questions.',
+  done:'Thank you very much!', doneText:'You have completed the study. Please hand the device back to the researcher.',
+  dlAll:'Download this participant (4 CSV)', newP:'Next participant'},
+ ko:{title:'키오스크 실험 – 2팀', setup:'연구자 설정', pid:'참가자 ID', order:'인터페이스 순서', setOrder:'과업 세트 순서',
+  consent:'참가자가 실험 참여에 동의함', start:'실험 시작', resume:'저장된 세션이 있습니다.', continue:'이어서 하기', reset:'저장 데이터 삭제',
+  intro:'인터페이스', introText:'이 키오스크로 3개의 주문 과업을 수행합니다. 평소처럼 주문해 주세요. “과업 시작”을 누르면 시간이 시작되고 “결제하기”를 누르면 끝납니다.',
+  go:'첫 번째 과업으로', task:'과업', startTask:'과업 시작', skip:'연구자: 실패로 과업 종료', taskHint:'주문할 내용',
+  shop:'HY 버거', touch:'어디에서 드시겠어요?', eatIn:'매장 식사', takeOut:'포장', cancelOrder:'주문 취소', home:'처음으로', back:'이전', next:'다음', skipStep:'건너뛰기',
+  items:'개', total:'합계', viewOrder:'주문 확인', pay:'결제하기', review:'주문 내역을 확인하세요', empty:'주문 내역이 없습니다.', addMore:'+ 더 담기',
+  burger:'버거', side:'사이드', drink:'음료', dessert:'디저트', beef:'비프', chicken:'치킨', special:'스페셜', soda:'탄산음료', coffee:'커피', juice:'주스',
+  single:'단품', set:'세트', setInfo:'버거 + 사이드 + 음료', chooseKind:'단품 또는 세트?', chooseSide:'사이드를 선택하세요', chooseDrink:'음료를 선택하세요',
+  customize:'버거 재료 변경', remove:'빼기', addExtra:'추가', size:'사이즈', temp:'온도', hot:'따뜻하게', iced:'차갑게(아이스)', qty:'수량',
+  add:'담기', added:'담았습니다', cancel:'취소', options:'옵션',
+  b1:'버거', b2:'재료', b3:'구성', b4:'사이드', b5:'음료', b6:'디저트', b7:'확인',
+  pickBurger:'1단계 – 버거를 선택하세요', addSide:'사이드를 추가하시겠어요?', addDrink:'음료를 추가하시겠어요?', addDessert:'디저트를 추가하시겠어요?',
+  anotherMenu:'+ 버거 추가 주문', without:'빼기', extra:'추가', eatInL:'매장', takeOutL:'포장',
+  rTitle:'키오스크 주문 실험', rIntro:'대학 연구(한양대학교 ERICA UX & Usability, 2팀)에 참여해 주셔서 감사합니다. 세 가지 셀프 주문 키오스크로 음식을 주문하고(각각 짧은 과업 3개) 간단한 설문에 응답합니다. 약 25–30분이 소요됩니다.',
+  rTips:'부탁드립니다: 쉬지 않고 한 번에 진행해 주세요 · 처음부터 끝까지 같은 기기를 사용해 주세요 · 실제 결제는 없습니다 · 여러분을 평가하는 것이 아니라 키오스크를 평가합니다.',
+  rConsent:'실험 참여에 동의합니다. 저의 응답과 터치 기록은 익명으로 저장되며 이 대학 과제에만 사용됩니다. 언제든지 중단할 수 있습니다.',
+  rStart:'시작하기', rWait:'연결 중 …', rErr:'연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.', rSending:'응답을 저장하는 중입니다 … 이 페이지를 닫지 마세요.',
+  rSent:'응답이 저장되었습니다.', rRetry:'다시 시도', rAlready:'이 기기에서 이미 실험을 완료하셨습니다. 감사합니다!', giveUp:'이 과업을 완료할 수 없습니다',
+  preTitle:'참가자 정보', finalTitle:'마지막 질문 – 세 가지 키오스크 비교',
+  survey:'설문', susIntro:'방금 사용한 키오스크에 대해 응답해 주세요. 정답이나 오답은 없습니다.', sd:'전혀 그렇지 않다', sa:'매우 그렇다',
+  satQ:'이 키오스크에 전반적으로 얼마나 만족하십니까?', submit:'제출', fillAll:'모든 문항에 응답해 주세요.',
+  done:'참여해 주셔서 감사합니다!', doneText:'실험이 끝났습니다. 기기를 연구자에게 돌려주세요.',
+  dlAll:'이 참가자 다운로드 (CSV 4개)', newP:'다음 참가자'}
+};
+const t = (k) => TEXT[S.lang][k] ?? k;
+
+/* =========================================================================
+   2. MENU – 24 products, identical in A, B and C (controlled variable)
+   opt: 'size' = M/L, 'coffee' = hot/iced + M/L
+   ========================================================================= */
+const ITEMS = {
+ bulgogi:     {cat:'burger',sub:'beef',   ic:'🍔',p:4900,sp:6900,tag:'BEST',en:'Bulgogi Burger',        ko:'불고기버거'},
+ cheese:      {cat:'burger',sub:'beef',   ic:'🍔',p:4500,sp:6500,en:'Cheeseburger',          ko:'치즈버거'},
+ dcheese:     {cat:'burger',sub:'beef',   ic:'🍔',p:6200,sp:8200,en:'Double Cheeseburger',   ko:'더블치즈버거'},
+ bigbeef:     {cat:'burger',sub:'beef',   ic:'🍔',p:6900,sp:8900,tag:'NEW',en:'Big Beef Burger', ko:'빅비프버거'},
+ chicken:     {cat:'burger',sub:'chicken',ic:'🍗',p:5200,sp:7200,en:'Chicken Burger',        ko:'치킨버거'},
+ spicy:       {cat:'burger',sub:'chicken',ic:'🌶️',p:5500,sp:7500,tag:'BEST',en:'Spicy Chicken Burger',ko:'매운 치킨버거'},
+ shrimp:      {cat:'burger',sub:'special',ic:'🦐',p:5400,sp:7400,en:'Shrimp Burger',         ko:'새우버거'},
+ veggie:      {cat:'burger',sub:'special',ic:'🥬',p:5000,sp:7000,tag:'NEW',en:'Veggie Burger',ko:'베지버거'},
+ fries:       {cat:'side',  ic:'🍟',p:2000,opt:'size',en:'French Fries',  ko:'감자튀김'},
+ cheesesticks:{cat:'side',  ic:'🧀',p:2500,en:'Cheese Sticks', ko:'치즈스틱'},
+ onionrings:  {cat:'side',  ic:'🧅',p:2300,opt:'size',en:'Onion Rings',   ko:'어니언링'},
+ nuggets:     {cat:'side',  ic:'🍤',p:2800,en:'Chicken Nuggets (6)',ko:'치킨너겟 (6조각)'},
+ cola:        {cat:'drink',sub:'soda',  ic:'🥤',p:1800,opt:'size',en:'Coca-Cola',   ko:'코카콜라'},
+ zero:        {cat:'drink',sub:'soda',  ic:'🥤',p:1800,opt:'size',en:'Coke Zero',   ko:'코카콜라 제로'},
+ sprite:      {cat:'drink',sub:'soda',  ic:'🥤',p:1800,opt:'size',en:'Sprite',      ko:'스프라이트'},
+ fanta:       {cat:'drink',sub:'soda',  ic:'🥤',p:1800,opt:'size',en:'Fanta Orange',ko:'환타 오렌지'},
+ americano:   {cat:'drink',sub:'coffee',ic:'☕',p:2500,opt:'coffee',en:'Americano',  ko:'아메리카노'},
+ latte:       {cat:'drink',sub:'coffee',ic:'☕',p:3200,opt:'coffee',en:'Café Latte', ko:'카페라떼'},
+ oj:          {cat:'drink',sub:'juice', ic:'🍊',p:2800,en:'Orange Juice',ko:'오렌지 주스'},
+ lemonade:    {cat:'drink',sub:'juice', ic:'🍋',p:3000,en:'Lemonade',    ko:'레모네이드'},
+ cone:        {cat:'dessert',ic:'🍦',p:1000,en:'Vanilla Cone',     ko:'바닐라 콘'},
+ sundae:      {cat:'dessert',ic:'🍨',p:2500,en:'Chocolate Sundae', ko:'초코 선데'},
+ applepie:    {cat:'dessert',ic:'🥧',p:1800,en:'Apple Pie',        ko:'애플파이'},
+ cookie:      {cat:'dessert',ic:'🍪',p:1500,en:'Cookie',           ko:'쿠키'},
+};
+const CATS = {burger:['beef','chicken','special'], side:null, drink:['soda','coffee','juice'], dessert:null};
+const CAT_IC = {burger:'🍔', side:'🍟', drink:'🥤', dessert:'🍦', beef:'🐄', chicken:'🍗', special:'⭐', soda:'🥤', coffee:'☕', juice:'🍊'};
+const REMOVE = {onion:{en:'Onion',ko:'양파'}, pickle:{en:'Pickles',ko:'피클'}, tomato:{en:'Tomato',ko:'토마토'}, lettuce:{en:'Lettuce',ko:'양상추'}, sauce:{en:'Sauce',ko:'소스'}};
+const EXTRA  = {cheese:{en:'Cheese',ko:'치즈',p:500}, bacon:{en:'Bacon',ko:'베이컨',p:1000}, patty:{en:'Patty',ko:'패티',p:1500}};
+const SET_SIDES = {fries:0, cheesesticks:500, onionrings:500};
+const SET_DRINKS = ['cola','zero','sprite','fanta'];
+const nm = (id) => ITEMS[id][S.lang];
+const won = (n) => '₩' + n.toLocaleString('en-US');
+const list = (cat, sub) => Object.keys(ITEMS).filter(id => ITEMS[id].cat === cat && (!sub || ITEMS[id].sub === sub));
+
+/* =========================================================================
+   3. TASKS – 3 parallel sets; difficulty rises T1 → T3
+   T1 = 2 simple items · T2 = customizing + option · T3 = 2 sets with changes + dessert
+   ========================================================================= */
+const TASKS = {
+ X:[{id:'T1',dine:'out',en:'Take out: 1 Bulgogi Burger (single) and 1 large Sprite.',ko:'포장: 불고기버거 단품 1개, 스프라이트 L 1개',
+     order:[{id:'bulgogi'},{id:'sprite',size:'L'}]},
+    {id:'T2',dine:'in',en:'Eat in: 1 Double Cheeseburger (single) without pickles and with extra bacon, plus 1 iced Americano.',ko:'매장: 더블치즈버거 단품 1개 (피클 빼기, 베이컨 추가), 아이스 아메리카노 1개',
+     order:[{id:'dcheese',rm:['pickle'],add:['bacon']},{id:'americano',temp:'iced'}]},
+    {id:'T3',dine:'out',en:'Take out: 2 Spicy Chicken Burger sets, each with cheese sticks and a large Coke Zero, plus 1 Apple Pie.',ko:'포장: 매운 치킨버거 세트 2개 (각각 치즈스틱, 코카콜라 제로 L), 애플파이 1개',
+     order:[{id:'spicy',set:true,side:'cheesesticks',drink:'zero',dsize:'L',qty:2},{id:'applepie'}]}],
+ Y:[{id:'T1',dine:'out',en:'Take out: 1 Chicken Burger (single) and 1 large Coca-Cola.',ko:'포장: 치킨버거 단품 1개, 코카콜라 L 1개',
+     order:[{id:'chicken'},{id:'cola',size:'L'}]},
+    {id:'T2',dine:'in',en:'Eat in: 1 Big Beef Burger (single) without onion and with extra cheese, plus 1 iced Café Latte.',ko:'매장: 빅비프버거 단품 1개 (양파 빼기, 치즈 추가), 아이스 카페라떼 1개',
+     order:[{id:'bigbeef',rm:['onion'],add:['cheese']},{id:'latte',temp:'iced'}]},
+    {id:'T3',dine:'out',en:'Take out: 2 Shrimp Burger sets, each with onion rings and a large Sprite, plus 1 Chocolate Sundae.',ko:'포장: 새우버거 세트 2개 (각각 어니언링, 스프라이트 L), 초코 선데 1개',
+     order:[{id:'shrimp',set:true,side:'onionrings',drink:'sprite',dsize:'L',qty:2},{id:'sundae'}]}],
+ Z:[{id:'T1',dine:'out',en:'Take out: 1 Cheeseburger (single) and 1 large Fanta Orange.',ko:'포장: 치즈버거 단품 1개, 환타 오렌지 L 1개',
+     order:[{id:'cheese'},{id:'fanta',size:'L'}]},
+    {id:'T2',dine:'in',en:'Eat in: 1 Bulgogi Burger (single) without tomato and with an extra patty, plus 1 iced Americano.',ko:'매장: 불고기버거 단품 1개 (토마토 빼기, 패티 추가), 아이스 아메리카노 1개',
+     order:[{id:'bulgogi',rm:['tomato'],add:['patty']},{id:'americano',temp:'iced'}]},
+    {id:'T3',dine:'out',en:'Take out: 2 Veggie Burger sets, each with cheese sticks and a large Coke Zero, plus 1 Cookie.',ko:'포장: 베지버거 세트 2개 (각각 치즈스틱, 코카콜라 제로 L), 쿠키 1개',
+     order:[{id:'veggie',set:true,side:'cheesesticks',drink:'zero',dsize:'L',qty:2},{id:'cookie'}]}],
+};
+const ORDERS = ['ABC','ACB','BAC','BCA','CAB','CBA'];
+const SET_ORDERS = ['XYZ','YZX','ZXY'];
+
+/* An order line with all defaults filled in → two lines can be compared */
+function norm(l){
+  const it = ITEMS[l.id];
+  if (it.cat === 'burger') return {id:l.id, set:!!l.set, rm:[...(l.rm||[])].sort(), add:[...(l.add||[])].sort(),
+    side:l.set ? (l.side||'fries') : null, drink:l.set ? (l.drink||'cola') : null, dsize:l.set ? (l.dsize||'M') : null};
+  if (it.opt === 'size') return {id:l.id, size:l.size||'M'};
+  if (it.opt === 'coffee') return {id:l.id, temp:l.temp||'hot', size:l.size||'M'};
+  return {id:l.id};
+}
+const key = (l) => JSON.stringify(norm(l));
+const units = (lines) => lines.flatMap(l => Array(l.qty || 1).fill(key(l)));   // 2× set → 2 units
+
+/* =========================================================================
+   4. STATE + autosave
+   ========================================================================= */
+const STORE = 'kioskStudyTeam2_v2';
+function freshState(){ return {screen:'setup', lang:'en', pid:'', order:'ABC', setOrder:'XYZ', consent:false, si:0, ti:0, attempt:0, ans:{}, part:{}, mod:null,
+                               t0:null, k:null, records:[], events:[], surveys:[], msg:''}; }
+let S = freshState(), saved = null;
+try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch(e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e) {} };
+const mode = () => S.order[S.si], taskSet = () => S.setOrder[S.si], task = () => TASKS[taskSet()][S.ti];
+const exp = () => task().order.map(l => ({...norm(l), qty:l.qty || 1}));
+
+/* Kiosk state for one task.  cur = product being configured */
+function newKiosk(){ return {dine:null, view:'welcome', cat:null, sub:null, step:1, cur:null, sheet:false, cart:[], pendingIdx:null, toast:'', taps:0, errors:0}; }
+function blankCfg(id){ return {id, qty:1, set:false, rm:[], add:[], side:'fries', drink:'cola', dsize:'M', size:'M', temp:'hot'}; }
+
+/* =========================================================================
+   5. LOGGING
+   ========================================================================= */
+function logEvent(action, value, isErr){
+  const k = S.k; k.taps++; if (isErr) k.errors++;
+  S.events.push({participant_id:S.pid, session:S.si+1, interface:mode(), task_set:taskSet(), task_id:task().id, attempt:S.attempt,
+    time_iso:new Date().toISOString(), elapsed_s:((Date.now()-S.t0)/1000).toFixed(2),
+    view:mode()==='B' && k.view==='menu' ? 'step'+k.step : k.view, action, value:value ?? '', error:isErr ? 1 : 0});
+}
+
+/* =========================================================================
+   6. ERROR RULES – a tap is an error if it leads away from the task goal
+   ========================================================================= */
+const E = {
+  dine: (v) => v !== task().dine,
+  cat:  (c) => !exp().some(l => ITEMS[l.id].cat === c),
+  sub:  (s) => !exp().some(l => ITEMS[l.id].sub === s),
+  prod: (id) => !exp().some(l => l.id === id),
+  kind: (id, set) => { const l = exp().find(x => x.id === id); return !!l && l.set !== set; },
+  opt:  (field, v) => {                        // option for the product being configured
+    const c = S.k.cur; if (!c) return false; const l = exp().find(x => x.id === c.id); if (!l) return false;
+    if (field === 'rm' || field === 'add') return (!c[field].includes(v)) !== l[field].includes(v);
+    return l[field] !== undefined && l[field] !== null && v !== l[field];
+  },
+  plus: (i) => { const line = S.k.cart[i]; const want = units(task().order).filter(u => u === key(line)).length;
+                 const have = units(S.k.cart).filter(u => u === key(line)).length; return have + 1 > want; },
+};
+
+/* =========================================================================
+   7. ORDER HELPERS
+   ========================================================================= */
+function price(l){
+  const it = ITEMS[l.id]; let p = l.set ? it.sp : it.p;
+  if (it.cat === 'burger'){ (l.add||[]).forEach(a => p += EXTRA[a].p); if (l.set){ p += SET_SIDES[l.side||'fries']; if (l.dsize === 'L') p += 500; } }
+  else if (l.size === 'L') p += 500;
+  return p * (l.qty || 1);
+}
+const total = () => S.k.cart.reduce((s, l) => s + price(l), 0);
+const count = () => S.k.cart.reduce((s, l) => s + (l.qty || 1), 0);
+function describe(l){
+  const n = norm(l), d = [];
+  if (n.set) d.push(nm(n.side) + ', ' + nm(n.drink) + ' ' + n.dsize);
+  if (n.rm && n.rm.length) d.push(n.rm.map(x => REMOVE[x][S.lang]).join(', ') + ' ' + t('without'));
+  if (n.add && n.add.length) d.push(n.add.map(x => EXTRA[x][S.lang]).join(', ') + ' ' + t('extra'));
+  if (n.temp) d.push(t(n.temp));
+  if (n.size) d.push(t('size') + ' ' + n.size);
+  return d.join(' · ');
+}
+function addCur(){ const c = S.k.cur; S.k.cart.push(JSON.parse(JSON.stringify(c))); S.k.cur = null; S.k.sheet = false; S.k.toast = t('added'); }
+function compare(){
+  const want = units(task().order), got = units(S.k.cart), rest = [...got]; let missing = 0;
+  want.forEach(w => { const i = rest.indexOf(w); if (i >= 0) rest.splice(i, 1); else missing++; });
+  return {ok: missing === 0 && rest.length === 0 && S.k.dine === task().dine, missing, extra: rest.length};
+}
+
+/* =========================================================================
+   8. SHARED KIOSK PARTS
+   ========================================================================= */
+const pic = (ic, cls='') => `<div class="pic ${cls}">${ic}</div>`;
+function prodBtn(act, id, sub){
+  const it = ITEMS[id];
+  return `<button class="prod" data-act="${act}" data-v="${id}">${it.tag ? `<span class="tag ${it.tag==='NEW'?'new':''}">${it.tag}</span>` : ''}${pic(it.ic)}<span class="nm">${nm(id)}</span><span class="pr">${sub ?? won(it.p)}</span></button>`;
+}
+function topBar(){
+  return `<div class="k-top"><div class="logo"><i>HY</i>${t('shop')}</div><div class="tb">
+    ${mode()==='A' && S.k.view !== 'welcome' ? `<button data-act="home">⌂ ${t('home')}</button>` : ''}
+    ${S.k.view !== 'welcome' ? `<button data-act="cancelOrder">✕ ${t('cancelOrder')}</button>` : ''}</div></div>
+    ${S.k.view !== 'welcome' ? `<div class="k-sub"><span>${S.k.dine==='in' ? '🍽 ' + t('eatInL') : '🛍 ' + t('takeOutL')}</span><span class="crumb">${crumb()}</span></div>` : ''}`;
+}
+function crumb(){
+  const k = S.k; if (mode() !== 'A') return '';
+  const parts = [t('home')]; if (k.cat) parts.push(t(k.cat)); if (k.sub) parts.push(t(k.sub)); if (k.cur && ['kind','side','drink','custom','opts'].includes(k.view)) parts.push(nm(k.cur.id));
+  return parts.join(' › ');
+}
+function welcome(){
+  return `<div class="welcome"><div class="logo" style="font-size:28px;color:var(--brand)"><i style="width:48px;height:48px;font-size:22px">HY</i>${t('shop')}</div>
+    <div class="w">${t('touch')}</div>
+    <div class="grid g2" style="width:100%"><button class="cat" data-act="dine" data-v="in">${pic('🍽')}<b>${t('eatIn')}</b></button>
+    <button class="cat" data-act="dine" data-v="out">${pic('🛍')}<b>${t('takeOut')}</b></button></div></div>`;
+}
+const chip = (act, v, on, label, cls='') => `<button class="chip ${cls} ${on?'on':''}" data-act="${act}" data-v="${v}">${label}</button>`;
+/* Option blocks – the same content everywhere, only the presentation differs */
+const sideChoices  = (c) => `<div class="grid g3">` + Object.keys(SET_SIDES).map(s => `<button class="choice ${c.side===s?'on':''}" data-act="o-side" data-v="${s}">${pic(ITEMS[s].ic)}<b>${nm(s)}</b><span class="small muted">${SET_SIDES[s] ? '+' + won(SET_SIDES[s]) : ''}</span></button>`).join('') + `</div>`;
+const drinkChoices = (c) => `<div class="grid g4">` + SET_DRINKS.map(d => `<button class="choice ${c.drink===d?'on':''}" data-act="o-drink" data-v="${d}">${pic(ITEMS[d].ic)}<b class="small">${nm(d)}</b></button>`).join('') +
+  `</div><div class="sect">${t('size')}</div><div class="chips">${chip('o-dsize','M',c.dsize==='M','M')}${chip('o-dsize','L',c.dsize==='L','L (+₩500)')}</div>`;
+const customChoices = (c) => `<div class="sect">${t('remove')}</div><div class="chips">` + Object.keys(REMOVE).map(r => chip('o-rm', r, c.rm.includes(r), (c.rm.includes(r)?'✕ ':'') + REMOVE[r][S.lang], 'rm')).join('') +
+  `</div><div class="sect">${t('addExtra')}</div><div class="chips">` + Object.keys(EXTRA).map(a => chip('o-add', a, c.add.includes(a), '+ ' + EXTRA[a][S.lang] + ' ' + won(EXTRA[a].p))).join('') + `</div>`;
+function itemOptions(c){                         // size / temperature for sides & drinks
+  const it = ITEMS[c.id]; let h = '';
+  if (it.opt === 'coffee') h += `<div class="sect">${t('temp')}</div><div class="chips">${chip('o-temp','hot',c.temp==='hot','☕ ' + t('hot'))}${chip('o-temp','iced',c.temp==='iced','🧊 ' + t('iced'))}</div>`;
+  if (it.opt) h += `<div class="sect">${t('size')}</div><div class="chips">${chip('o-size','M',c.size==='M','M')}${chip('o-size','L',c.size==='L','L (+₩500)')}</div>`;
+  return h;
+}
+const hero = (c, kind=true) => `<div class="hero">${pic(ITEMS[c.id].ic)}<div><div class="k-title" style="margin:0">${nm(c.id)}${kind && ITEMS[c.id].cat==='burger' ? ' ' + t(c.set?'set':'single') : ''}</div><div class="muted">${won(price(c))}</div></div></div>`;
+function cartLines(){
+  if (!S.k.cart.length) return `<p class="muted">${t('empty')}</p>`;
+  return S.k.cart.map((l, i) => `<div class="line"><div>${nm(l.id)}${ITEMS[l.id].cat==='burger' ? ' ' + t(l.set?'set':'single') : ''}<small>${describe(l)}</small></div>
+    <div class="qty"><button data-act="minus" data-v="${i}">−</button><b>${l.qty}</b><button data-act="plus" data-v="${i}">+</button>
+    <span style="min-width:70px;text-align:right">${won(price(l))}</span><button class="x" data-act="remove" data-v="${i}">✕</button></div></div>`).join('');
+}
+function reviewBody(){ return `<div class="k-title">${t('review')}</div>${cartLines()}<p style="text-align:right;font-weight:800;font-size:18px">${t('total')} ${won(total())}</p>`; }
+const sumBox = () => `<div class="sum"><span class="small">${count()} ${t('items')}</span><b>${won(total())}</b></div>`;
+const toast = () => S.k.toast ? `<div class="toast">✓ ${S.k.toast}</div>` : '';
+const frame = (body, bar, extra='') => `${topBar()}<div class="k-body">${body}</div>${bar ? `<div class="k-bar">${bar}</div>` : ''}${toast()}${extra}`;
+
+/* =========================================================================
+   9. INTERFACE A – HIERARCHICAL (deep: one decision per screen)
+   home → (sub) → list → [burger: kind → (set: side → drink) → custom] / [others: opts] → home
+   ========================================================================= */
+function kioskA(){
+  const k = S.k, c = k.cur;
+  if (k.view === 'welcome') return topBar() + welcome();
+  const backBtn = `<button class="nav" data-act="a-back">‹ ${t('back')}</button>`;
+  const cartBar = sumBox() + `<button class="pay" data-act="review" ${k.cart.length?'':'disabled'}>${t('viewOrder')}</button>`;
+  if (k.view === 'home') return frame(`<div class="grid g2">` + Object.keys(CATS).map(cat => `<button class="cat" data-act="a-cat" data-v="${cat}">${pic(CAT_IC[cat])}<b>${t(cat)}</b></button>`).join('') + `</div>`, cartBar);
+  if (k.view === 'sub') return frame(`<div class="k-title">${t(k.cat)}</div><div class="grid g1" style="display:grid;gap:10px">` + CATS[k.cat].map(s => `<button class="cat" style="min-height:150px;flex-direction:row;justify-content:flex-start;gap:20px" data-act="a-sub" data-v="${s}">${pic(CAT_IC[s])}<b>${t(s)}</b></button>`).join('') + `</div>`, backBtn + cartBar);
+  if (k.view === 'list') return frame(`<div class="k-title">${t(k.sub || k.cat)}</div><div class="grid g2">` + list(k.cat, k.sub).map(id => prodBtn('a-prod', id, k.cat==='burger' ? `${t('single')} ${won(ITEMS[id].p)}` : null)).join('') + `</div>`, backBtn + cartBar);
+  if (k.view === 'kind') return frame(hero(c, false) + `<div class="k-title">${t('chooseKind')}</div><div class="grid g2 big2">
+      <button class="choice" data-act="a-kind" data-v="single">${pic(ITEMS[c.id].ic)}<b>${t('single')}</b><span>${won(ITEMS[c.id].p)}</span></button>
+      <button class="choice" data-act="a-kind" data-v="set"><div class="pic" style="font-size:30px">🍔🍟🥤</div><b>${t('set')}</b><span>${won(ITEMS[c.id].sp)}</span><span class="small muted">${t('setInfo')}</span></button></div>`, backBtn);
+  if (k.view === 'side')   return frame(hero(c) + `<div class="k-title">${t('chooseSide')}</div>` + sideChoices(c), backBtn + `<span style="flex:1"></span><button class="pay" data-act="a-next">${t('next')} ›</button>`);
+  if (k.view === 'drink')  return frame(hero(c) + `<div class="k-title">${t('chooseDrink')}</div>` + drinkChoices(c), backBtn + `<span style="flex:1"></span><button class="pay" data-act="a-next">${t('next')} ›</button>`);
+  if (k.view === 'custom') return frame(hero(c) + `<div class="k-title">${t('customize')}</div>` + customChoices(c), backBtn + `<span style="flex:1"></span><button class="pay" data-act="add">${t('add')}</button>`);
+  if (k.view === 'opts')   return frame(hero(c) + itemOptions(c), backBtn + `<span style="flex:1"></span><button class="pay" data-act="add">${t('add')}</button>`);
+  if (k.view === 'review') return frame(reviewBody(), `<button class="nav" data-act="a-more">${t('addMore')}</button>` + sumBox() + `<button class="pay" data-act="pay" ${k.cart.length?'':'disabled'}>${t('pay')}</button>`);
+}
+
+/* =========================================================================
+   10. INTERFACE B – LINEAR (fixed sequence, every step is shown)
+   ========================================================================= */
+function stepBar(){ return `<div class="steps">` + [1,2,3,4,5,6,7].map(i => `<div class="st ${S.k.step===i?'now':S.k.step>i?'done':''}">${i} ${t('b'+i)}</div>`).join('') + `</div>`; }
+function kioskB(){
+  const k = S.k, c = k.cur;
+  if (k.view === 'welcome') return topBar() + welcome();
+  const back = k.step > 1 ? `<button class="nav" data-act="b-back">‹ ${t('back')}</button>` : '';
+  const nextBtn = (label) => `<span style="flex:1"></span><button class="pay" data-act="b-next">${label} ›</button>`;
+  let body = '', bar = '';
+  if (k.step === 1){ body = `<div class="k-title">${t('pickBurger')}</div><div class="grid g2">` + list('burger').map(id => prodBtn('b-burger', id)).join('') + `</div>`; bar = back + sumBox(); }
+  if (k.step === 2){ body = hero(c, false) + `<div class="k-title">${t('customize')}</div>` + customChoices(c); bar = back + nextBtn(t('next')); }
+  if (k.step === 3){ body = hero(c, false) + `<div class="k-title">${t('chooseKind')}</div><div class="grid g2 big2">
+      <button class="choice ${!c.set?'on':''}" data-act="b-kind" data-v="single">${pic(ITEMS[c.id].ic)}<b>${t('single')}</b><span>${won(ITEMS[c.id].p)}</span></button>
+      <button class="choice ${c.set?'on':''}" data-act="b-kind" data-v="set"><div class="pic" style="font-size:30px">🍔🍟🥤</div><b>${t('set')}</b><span>${won(ITEMS[c.id].sp)}</span></button></div>`; bar = back + nextBtn(t('next')); }
+  if (k.step === 4){ body = c.set ? `<div class="k-title">${t('chooseSide')}</div>` + sideChoices(c)
+                                  : `<div class="k-title">${t('addSide')}</div><div class="grid g4">` + list('side').map(id => prodBtn('b-extra', id)).join('') + `</div>`;
+                     bar = back + nextBtn(c.set ? t('next') : t('skipStep') + ' / ' + t('next')); }
+  if (k.step === 5){ body = c.set ? `<div class="k-title">${t('chooseDrink')}</div>` + drinkChoices(c)
+                                  : `<div class="k-title">${t('addDrink')}</div><div class="grid g4">` + list('drink').map(id => prodBtn('b-extra', id)).join('') + `</div>`;
+                     bar = back + nextBtn(c.set ? t('next') : t('skipStep') + ' / ' + t('next')); }
+  if (k.step === 6){ body = `<div class="k-title">${t('addDessert')}</div><div class="grid g4">` + list('dessert').map(id => prodBtn('b-extra', id)).join('') + `</div>`; bar = back + nextBtn(t('skipStep') + ' / ' + t('next')); }
+  if (k.step === 7){ body = reviewBody() + `<button class="btn ghost" style="width:100%" data-act="b-again">${t('anotherMenu')}</button>`; bar = back + sumBox() + `<button class="pay" data-act="pay" ${k.cart.length?'':'disabled'}>${t('pay')}</button>`; }
+  const sheet = k.sheet ? `<div class="modal-bg"><div class="sheet">${hero(c)}${itemOptions(c)}<div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" data-act="sheet-cancel">${t('cancel')}</button><button class="btn primary" data-act="add">${t('add')}</button></div></div></div>` : '';
+  return topBar() + stepBar() + `<div class="k-body">${body}</div><div class="k-bar">${bar}</div>${toast()}${sheet}`;
+}
+
+/* =========================================================================
+   11. INTERFACE C – FLAT (everything on one screen, all options in one pop-up)
+   ========================================================================= */
+function kioskC(){
+  const k = S.k, c = k.cur;
+  if (k.view === 'welcome') return topBar() + welcome();
+  const sec = (title, ids) => `<div class="flatsec">${title}</div><div class="grid g4">` + ids.map(id => prodBtn('c-prod', id, ITEMS[id].sp ? `${won(ITEMS[id].p)} / ${t('set')} ${won(ITEMS[id].sp)}` : null)).join('') + `</div>`;
+  const body = `<div class="flat">${sec(t('burger'), list('burger'))}${sec(t('side'), list('side'))}${sec(t('drink'), list('drink'))}${sec(t('dessert'), list('dessert'))}</div>`;
+  let sheet = '';
+  if (k.sheet){
+    const burger = ITEMS[c.id].cat === 'burger';
+    sheet = `<div class="modal-bg"><div class="sheet">${hero(c)}
+      ${burger ? `<div class="sect">${t('chooseKind')}</div><div class="chips">${chip('c-kind','single',!c.set,t('single') + ' ' + won(ITEMS[c.id].p))}${chip('c-kind','set',c.set,t('set') + ' ' + won(ITEMS[c.id].sp))}</div>` : ''}
+      ${burger && c.set ? `<div class="sect">${t('chooseSide')}</div>${sideChoices(c)}<div class="sect">${t('chooseDrink')}</div>${drinkChoices(c)}` : ''}
+      ${burger ? customChoices(c) : itemOptions(c)}
+      <div class="sect">${t('qty')}</div><div class="qty"><button data-act="c-qty" data-v="-1">−</button><b>${c.qty}</b><button data-act="c-qty" data-v="1">+</button></div>
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn ghost" data-act="sheet-cancel">${t('cancel')}</button><button class="btn primary" data-act="add">${t('add')}</button></div></div></div>`;
+  }
+  return topBar() + `<div class="k-body">${body}</div><div class="cartbox">${cartLines()}</div>
+    <div class="k-bar">${sumBox()}<button class="pay" data-act="pay" ${k.cart.length?'':'disabled'}>${t('pay')}</button></div>${toast()}${sheet}`;
+}
+
+/* =========================================================================
+   12. WHAT HAPPENS ON EACH TAP
+   ========================================================================= */
+function onKiosk(act, v){
+  const k = S.k, c = k.cur; k.toast = '';
+  switch (act){
+    // ---- shared
+    case 'dine': logEvent(act, v, E.dine(v)); k.dine = v; k.view = mode() === 'A' ? 'home' : 'menu'; break;
+    case 'cancelOrder': logEvent(act); Object.assign(k, newKiosk(), {taps:k.taps, errors:k.errors}); break;
+    case 'home': logEvent(act); k.view = 'home'; k.cat = k.sub = null; k.cur = null; break;
+    case 'o-side':  logEvent(act, v, E.opt('side', v));  c.side = v; break;
+    case 'o-drink': logEvent(act, v, E.opt('drink', v)); c.drink = v; break;
+    case 'o-dsize': logEvent(act, v, E.opt('dsize', v)); c.dsize = v; break;
+    case 'o-size':  logEvent(act, v, E.opt('size', v));  c.size = v; break;
+    case 'o-temp':  logEvent(act, v, E.opt('temp', v));  c.temp = v; break;
+    case 'o-rm':  logEvent(act, v, E.opt('rm', v));  { const i = c.rm.indexOf(v);  i >= 0 ? c.rm.splice(i, 1)  : c.rm.push(v); } break;
+    case 'o-add': logEvent(act, v, E.opt('add', v)); { const i = c.add.indexOf(v); i >= 0 ? c.add.splice(i, 1) : c.add.push(v); } break;
+    case 'add': logEvent(act, c.id); addCur(); if (mode() === 'A'){ k.view = 'home'; k.cat = k.sub = null; } break;
+    case 'sheet-cancel': logEvent(act); k.cur = (mode() === 'B' ? k.burger : null); k.sheet = false; break;
+    case 'plus':   logEvent(act, k.cart[v].id, E.plus(+v)); k.cart[v].qty++; break;
+    case 'minus':  logEvent(act, k.cart[v].id); if (k.cart[v].qty > 1) k.cart[v].qty--; break;
+    case 'remove': logEvent(act, k.cart[v].id); k.cart.splice(+v, 1); break;
+    case 'review': logEvent(act); k.view = 'review'; break;
+    case 'pay':    logEvent(act); finishTask(false); return;
+    // ---- A: hierarchical
+    case 'a-cat':  logEvent(act, v, E.cat(v)); k.cat = v; k.sub = null; k.view = CATS[v] ? 'sub' : 'list'; break;
+    case 'a-sub':  logEvent(act, v, E.sub(v)); k.sub = v; k.view = 'list'; break;
+    case 'a-prod': logEvent(act, v, E.prod(v)); k.cur = blankCfg(v); k.view = ITEMS[v].cat === 'burger' ? 'kind' : ITEMS[v].opt ? 'opts' : null;
+                   if (!k.view){ addCur(); k.view = 'list'; } break;              // no options → added directly
+    case 'a-kind': logEvent(act, v, E.kind(c.id, v === 'set')); c.set = v === 'set'; k.view = c.set ? 'side' : 'custom'; break;
+    case 'a-next': logEvent(act); k.view = k.view === 'side' ? 'drink' : 'custom'; break;
+    case 'a-back': logEvent(act);
+      k.view = ({sub:'home', list: k.sub ? 'sub' : 'home', kind:'list', opts:'list', side:'kind', drink:'side', custom: c && c.set ? 'drink' : 'kind'})[k.view] || 'home';
+      if (k.view === 'list' || k.view === 'home') k.cur = null; if (k.view === 'home') k.cat = k.sub = null; break;
+    case 'a-more': logEvent(act); k.view = 'home'; k.cat = k.sub = null; break;
+    // ---- B: linear
+    case 'b-burger': logEvent(act, v, E.prod(v)); k.cur = k.burger = blankCfg(v); k.step = 2; break;
+    case 'b-kind': logEvent(act, v, E.kind(c.id, v === 'set')); c.set = v === 'set'; break;
+    case 'b-extra': logEvent(act, v, E.prod(v)); if (ITEMS[v].opt){ k.cur = blankCfg(v); k.sheet = true; } else { k.cur = blankCfg(v); addCur(); k.cur = k.burger; } break;
+    case 'b-next': logEvent(act);
+      if (k.step === 5){ k.cart.push(JSON.parse(JSON.stringify(k.burger))); k.pendingIdx = k.cart.length - 1; }   // burger goes into the order here
+      k.step++; break;
+    case 'b-back': logEvent(act);
+      if (k.step === 6 && k.pendingIdx !== null){ k.cart.splice(k.pendingIdx, 1); k.pendingIdx = null; }
+      if (k.step === 7) { k.step = 6; break; }
+      k.step = Math.max(1, k.step - 1); break;
+    case 'b-again': logEvent(act); k.step = 1; k.cur = k.burger = null; k.pendingIdx = null; break;
+    // ---- C: flat
+    case 'c-prod': logEvent(act, v, E.prod(v)); k.cur = blankCfg(v); k.sheet = true; break;
+    case 'c-kind': logEvent(act, v, E.kind(c.id, v === 'set')); c.set = v === 'set'; break;
+    case 'c-qty':  logEvent(act, v); c.qty = Math.max(1, c.qty + (+v)); break;
+  }
+  if (act === 'add' && mode() === 'B') k.cur = k.burger;   // after an extra, continue with the burger
+}
+
+/* =========================================================================
+   13. QUESTIONNAIRES (all instruments from lecture Ch. 6, Tullis & Albert)
+   Pre-study: demographics · Before each task: Expectation · After each task: SEQ
+   After each interface: ASQ, SUS, satisfaction, (CSUQ), reaction cards, NPS, open questions
+   After all three: preference + comments
+   ========================================================================= */
+const Q = {
+ // ---- labels for scales
+ agree5:{en:['Strongly disagree','Disagree','Neither','Agree','Strongly agree'], ko:['전혀 그렇지 않다','그렇지 않다','보통이다','그렇다','매우 그렇다']},
+ agree7:{en:['Strongly disagree','','','Neither','','','Strongly agree'], ko:['전혀 그렇지 않다','','','보통이다','','','매우 그렇다']},
+ ease7:{en:['Very difficult','','','','','','Very easy'], ko:['매우 어렵다','','','','','','매우 쉽다']},
+ sat5:{en:['Not at all satisfied','Slightly satisfied','Moderately satisfied','Very satisfied','Extremely satisfied'],
+       ko:['전혀 만족하지 않는다','약간 만족한다','어느 정도 만족한다','매우 만족한다','극히 만족한다']},
+ conf5:{en:['Not at all confident','Slightly confident','Moderately confident','Very confident','Extremely confident'],
+        ko:['전혀 자신 없다','약간 자신 있다','어느 정도 자신 있다','매우 자신 있다','극히 자신 있다']},
+ // ---- questions
+ expQ:{en:'Before you start: how easy or difficult do you EXPECT this task to be?', ko:'시작하기 전에: 이 과업이 얼마나 쉽거나 어려울 것이라고 예상하십니까?'},
+ seqQ:{en:'Overall, this task was:', ko:'전반적으로 이 과업은:'},
+ asq:{en:['I am satisfied with the ease of completing the tasks in this scenario.','I am satisfied with the amount of time it took to complete the tasks in this scenario.',
+          'I am satisfied with the support information (on-screen messages, labels, instructions) when completing the tasks.'],
+      ko:['이 시나리오의 과업을 쉽게 완료할 수 있었다는 점에 만족한다.','이 시나리오의 과업을 완료하는 데 걸린 시간에 만족한다.',
+          '과업을 수행할 때 제공된 안내 정보(화면 메시지, 레이블, 안내문)에 만족한다.']},
+ sus:{en:['I think that I would like to use this kiosk frequently.','I found the kiosk unnecessarily complex.','I thought the kiosk was easy to use.',
+          'I think that I would need the support of a technical person to be able to use this kiosk.','I found the various functions in this kiosk were well integrated.',
+          'I thought there was too much inconsistency in this kiosk.','I would imagine that most people would learn to use this kiosk very quickly.',
+          'I found the kiosk very cumbersome to use.','I felt very confident using the kiosk.','I needed to learn a lot of things before I could get going with this kiosk.'],
+      ko:['이 키오스크를 자주 사용하고 싶다.','이 키오스크는 불필요하게 복잡하다.','이 키오스크는 사용하기 쉽다.','이 키오스크를 사용하려면 기술적인 도움이 필요할 것 같다.',
+          '이 키오스크의 여러 기능이 잘 통합되어 있다.','이 키오스크는 일관성이 부족하다.','대부분의 사람들이 이 키오스크 사용법을 빠르게 배울 것이다.',
+          '이 키오스크는 사용하기 매우 번거롭다.','이 키오스크를 사용하는 데 자신감이 있었다.','이 키오스크를 사용하기 전에 많은 것을 배워야 했다.']},
+ satQ:{en:'Overall, how satisfied are you with this kiosk?', ko:'전반적으로 이 키오스크에 얼마나 만족하십니까?'},
+ csuq:{en:['Overall, I am satisfied with how easy it is to use this system.','It was simple to use this system.','I could effectively complete the tasks and scenarios using this system.',
+           'I was able to complete the tasks and scenarios quickly using this system.','I was able to efficiently complete the tasks and scenarios using this system.',
+           'I felt comfortable using this system.','It was easy to learn to use this system.','I believe I could become productive quickly using this system.',
+           'The system gave error messages that clearly told me how to fix problems.','Whenever I made a mistake using the system, I could recover easily and quickly.',
+           'The information (such as online help, on-screen messages, and other documentation) provided with this system was clear.','It was easy to find the information I needed.',
+           'The information provided for the system was easy to understand.','The information was effective in helping me complete the tasks and scenarios.',
+           'The organization of information on the system screens was clear.','The interface of this system was pleasant.','I liked using the interface of this system.',
+           'This system has all the functions and capabilities I expect it to have.','Overall, I am satisfied with this system.'],
+       ko:['전반적으로 이 시스템의 사용 편의성에 만족한다.','이 시스템은 사용하기 간단했다.','이 시스템으로 과업과 시나리오를 효과적으로 완료할 수 있었다.',
+           '이 시스템으로 과업과 시나리오를 빠르게 완료할 수 있었다.','이 시스템으로 과업과 시나리오를 효율적으로 완료할 수 있었다.',
+           '이 시스템을 사용하는 것이 편안했다.','이 시스템의 사용법을 배우기 쉬웠다.','이 시스템을 사용하면 금방 능숙해질 수 있을 것 같다.',
+           '이 시스템은 문제를 해결하는 방법을 명확히 알려주는 오류 메시지를 제공했다.','이 시스템을 사용하다 실수를 했을 때 쉽고 빠르게 복구할 수 있었다.',
+           '이 시스템이 제공하는 정보(도움말, 화면 메시지, 기타 안내)는 명확했다.','필요한 정보를 찾기 쉬웠다.',
+           '이 시스템에서 제공된 정보는 이해하기 쉬웠다.','제공된 정보는 과업과 시나리오를 완료하는 데 효과적이었다.',
+           '시스템 화면의 정보 구성이 명확했다.','이 시스템의 인터페이스는 쾌적했다.','이 시스템의 인터페이스를 사용하는 것이 좋았다.',
+           '이 시스템은 내가 기대하는 모든 기능을 갖추고 있다.','전반적으로 이 시스템에 만족한다.']},
+ cardsQ:{en:'Choose up to 5 words that best describe this kiosk.', ko:'이 키오스크를 가장 잘 설명하는 단어를 최대 5개 고르세요.'},
+ npsQ:{en:'How likely are you to recommend this kiosk to a friend?', ko:'이 키오스크를 친구에게 추천할 가능성은 얼마나 됩니까?'},
+ npsL:{en:['Not at all likely','Extremely likely'], ko:['전혀 추천하지 않음','매우 추천함']},
+ likeQ:{en:'What did you like MOST about this kiosk? (optional)', ko:'이 키오스크에서 가장 좋았던 점은 무엇입니까? (선택)'},
+ dislikeQ:{en:'What did you like LEAST about this kiosk? (optional)', ko:'이 키오스크에서 가장 불편했던 점은 무엇입니까? (선택)'},
+ // ---- pre-study
+ ageQ:{en:'Age', ko:'나이'}, genderQ:{en:'Gender', ko:'성별'},
+ genderO:{en:['Female','Male','Other','Prefer not to say'], ko:['여성','남성','기타','응답하지 않음']},
+ freqQ:{en:'How often have you used self-ordering kiosks in the last 3 months?', ko:'최근 3개월 동안 셀프 주문 키오스크를 얼마나 자주 사용하셨습니까?'},
+ freqO:{en:['Never','Less than once a month','1–3 times a month','About once a week','Several times a week'], ko:['사용한 적 없음','월 1회 미만','월 1–3회','주 1회 정도','주 여러 번']},
+ confQ:{en:'How confident are you using self-ordering kiosks?', ko:'셀프 주문 키오스크 사용에 얼마나 자신이 있으십니까?'},
+ // ---- final
+ bestQ:{en:'Which kiosk did you like BEST?', ko:'가장 좋았던 키오스크는 무엇입니까?'}, worstQ:{en:'Which kiosk did you like LEAST?', ko:'가장 불편했던 키오스크는 무엇입니까?'},
+ kioskN:{en:['1st kiosk','2nd kiosk','3rd kiosk'], ko:['첫 번째 키오스크','두 번째 키오스크','세 번째 키오스크']},
+ whyQ:{en:'Why? Any other comments? (optional)', ko:'이유 또는 기타 의견 (선택)'},
+};
+/* Product reaction cards – 30 of the 118 Microsoft cards (lecture slides 35–36), alphabetical, ~50 % positive / 40 % negative / 10 % neutral */
+const CARDS = [['Annoying','짜증 나는'],['Attractive','시각적으로 끌리는'],['Basic','기본적인'],['Busy','어수선한'],['Clear','명확한'],['Complex','복잡한'],
+ ['Confusing','혼란스러운'],['Convenient','편리한'],['Difficult','어려운'],['Easy to use','사용하기 쉬운'],['Efficient','효율적인'],['Familiar','익숙한'],
+ ['Fast','빠른'],['Flexible','유연한'],['Friendly','친근한'],['Hard to use','사용하기 힘든'],['Inconsistent','일관성이 없는'],['Intuitive','직관적인'],
+ ['Organized','체계적인'],['Overwhelming','압도하는 / 벅찬'],['Predictable','예측 가능한'],['Rigid','경직된'],['Simple','단순한'],['Slow','느린'],
+ ['Straightforward','쉬운 / 명료한'],['Stressful','스트레스가 많은'],['Time-consuming','시간이 오래 걸리는'],['Time-saving','시간을 절약해 주는'],
+ ['Understandable','이해하기 쉬운'],['Useful','유용한']];
+const q = (key) => Q[key][S.lang];
+const susScore = (a) => a.reduce((s, x, i) => s + (i % 2 === 0 ? x - 1 : 5 - x), 0) * 2.5;
+const MODULES = {pre:'Pre-study: demographics', exp:'Expectation rating (before each task)', seq:'SEQ – Single Ease Question (after each task)',
+  asq:'ASQ – After-Scenario Questionnaire (3 items)', sus:'SUS – System Usability Scale (10 items)', sat:'Overall satisfaction (1 item)',
+  csuq:'CSUQ – Computer System Usability Questionnaire (19 items, long!)', cards:'Product reaction cards (choose 5)', nps:'NPS – Net Promoter Score',
+  open:'Open questions (like most / least)', final:'Final: preference A/B/C + comments'};
+const DEFAULT_MOD = {pre:true, exp:true, seq:true, asq:true, sus:true, sat:true, csuq:false, cards:true, nps:true, open:true, final:true};
+
+/* ---- Participant IDs: P01–P24 (+ pilots). A used ID cannot be chosen again. */
+const IDS = [...Array.from({length:24}, (_, i) => 'P' + String(i+1).padStart(2, '0')), 'PILOT1', 'PILOT2', 'PILOT3'];
+const IDSTORE = 'kioskStudyTeam2_ids';
+let REG = {used:{}, mod:{...DEFAULT_MOD}};
+try { const r = JSON.parse(localStorage.getItem(IDSTORE) || 'null'); if (r) REG = {used:r.used || {}, mod:{...DEFAULT_MOD, ...(r.mod || {})}}; } catch(e) {}
+const saveReg = () => { try { localStorage.setItem(IDSTORE, JSON.stringify(REG)); } catch(e) {} };
+/* ---- Data of all finished participants stays on this device (researcher only, PIN protected) */
+const DATASTORE = 'kioskStudyTeam2_data';
+let ARCH = {};
+try { ARCH = JSON.parse(localStorage.getItem(DATASTORE) || '{}'); } catch(e) {}
+const saveArch = () => { try { localStorage.setItem(DATASTORE, JSON.stringify(ARCH)); } catch(e) {} };
+let unlocked = false;                         // researcher area open? (never saved)
+const PIN = () => REG.pin || '1234';
+function assign(pid){                       // counterbalancing: 6 interface orders × 4, task-set order rotates every 6 participants
+  const i = IDS.indexOf(pid); if (i < 0) return;
+  if (i < 24){ S.order = ORDERS[i % 6]; S.setOrder = SET_ORDERS[Math.floor(i / 6) % 3]; }
+  else { S.order = ORDERS[(i - 24) % 6]; S.setOrder = SET_ORDERS[(i - 24) % 3]; }
+}
+
+/* =========================================================================
+   14. STUDY FLOW
+   ========================================================================= */
+const M = () => S.mod || DEFAULT_MOD;
+function startTask(){ S.k = newKiosk(); S.attempt++; S.t0 = Date.now(); S.screen = 'kiosk'; }
+function finishTask(aborted){
+  const k = S.k, res = compare();
+  if (!aborted && res.missing){ k.errors += res.missing;
+    S.events.push({participant_id:S.pid, session:S.si+1, interface:mode(), task_set:taskSet(), task_id:task().id, attempt:S.attempt,
+      time_iso:new Date().toISOString(), elapsed_s:((Date.now()-S.t0)/1000).toFixed(2), view:'pay', action:'omission', value:res.missing, error:1}); }
+  S.records.push({participant_id:S.pid, session:S.si+1, interface:mode(), task_set:taskSet(), interface_order:S.order, set_order:S.setOrder,
+    task_id:task().id, success:(!aborted && res.ok) ? 1 : 0, status:aborted ? 'aborted' : res.ok ? 'success' : 'wrong_order',
+    time_s:((Date.now()-S.t0)/1000).toFixed(2), taps:k.taps, errors:k.errors, dine:k.dine || '',
+    expectation:S.ans.exp ?? '', seq:'', expected:JSON.stringify(units(task().order)), actual:JSON.stringify(units(k.cart))});
+  S.k = null; S.ans = {};
+  if (M().seq) S.screen = 'seq'; else afterTask();
+}
+function afterTask(){ S.ti++; S.screen = S.ti < 3 ? 'task' : 'survey'; S.ans = {}; }
+const need = (names) => names.every(n => S.ans[n] !== undefined && S.ans[n] !== '');
+function submit(){
+  const A = S.ans, m = M(); S.msg = '';
+  if (S.screen === 'pre'){
+    if (!need(['age','gender','freq','conf'])) { S.msg = t('fillAll'); return; }
+    Object.assign(S.part, {age:A.age, gender:A.gender, kiosk_use:A.freq, kiosk_confidence:A.conf}); S.ans = {}; S.screen = 'intro';
+  } else if (S.screen === 'task'){                       // expectation rating, then start
+    if (m.exp && !need(['exp'])) { S.msg = t('fillAll'); return; }
+    S.ans = {exp:A.exp}; startTask();
+  } else if (S.screen === 'seq'){
+    if (!need(['seq'])) { S.msg = t('fillAll'); return; }
+    S.records[S.records.length - 1].seq = A.seq; afterTask();
+  } else if (S.screen === 'survey'){
+    const req = [...(m.asq ? [1,2,3].map(i => 'asq' + i) : []), ...(m.sus ? Q.sus.en.map((_, i) => 'sus' + (i+1)) : []), ...(m.sat ? ['sat'] : []),
+                 ...(m.csuq ? Q.csuq.en.map((_, i) => 'csuq' + (i+1)) : []), ...(m.nps ? ['nps'] : [])];
+    if (!need(req) || (m.cards && !(A.cards || []).length)) { S.msg = t('fillAll'); return; }
+    const num = (x) => x === 'NA' ? null : +x, mean = (xs) => { const v = xs.map(num).filter(x => x !== null); return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : ''; };
+    const row = {participant_id:S.pid, session:S.si+1, interface:mode(), task_set:taskSet(), interface_order:S.order};
+    if (m.asq){ [1,2,3].forEach(i => row['asq' + i] = A['asq' + i]); row.asq_mean = mean([1,2,3].map(i => A['asq' + i])); }
+    if (m.sus){ const a = Q.sus.en.map((_, i) => +A['sus' + (i+1)]); a.forEach((x, i) => row['sus' + (i+1)] = x); row.sus_score = susScore(a); }
+    if (m.sat) row.satisfaction = A.sat;
+    if (m.csuq){ const c = Q.csuq.en.map((_, i) => A['csuq' + (i+1)]); c.forEach((x, i) => row['csuq' + (i+1)] = x);
+      row.csuq_sysuse = mean(c.slice(0, 8)); row.csuq_infoqual = mean(c.slice(8, 15)); row.csuq_interqual = mean(c.slice(15, 18)); row.csuq_overall = mean(c); }
+    if (m.cards) row.reaction_cards = (A.cards || []).join('; ');
+    if (m.nps){ row.nps = A.nps; row.nps_group = A.nps >= 9 ? 'promoter' : A.nps >= 7 ? 'passive' : 'detractor'; }
+    if (m.open){ row.like_most = A.like || ''; row.like_least = A.dislike || ''; }
+    row.time_iso = new Date().toISOString();
+    S.surveys.push(row); S.ans = {}; S.si++; S.ti = 0;
+    S.screen = S.si < 3 ? 'intro' : (m.final ? 'final' : 'done');
+    if (S.screen === 'done') finishParticipant();
+  } else if (S.screen === 'final'){
+    if (!need(['best','worst'])) { S.msg = t('fillAll'); return; }
+    Object.assign(S.part, {best:S.order[A.best], worst:S.order[A.worst], comment:A.why || ''}); S.ans = {}; S.screen = 'done'; finishParticipant();
+  }
+}
+function partRow(){ return {participant_id:S.pid, interface_order:S.order, set_order:S.setOrder, lang:S.lang, ...S.part}; }
+function finishParticipant(){
+  S.part.finished = new Date().toISOString(); REG.used[S.pid] = 'done'; saveReg();
+  ARCH[S.pid] = {records:S.records, events:S.events, surveys:S.surveys, part:partRow()}; saveArch();   // automatic backup
+  if (REMOTE) sendData();
+}
+/* ---- ONLINE mode: talk to the Google Apps Script (see Code.gs) */
+function deviceInfo(){
+  return {screen:`${screen.width}x${screen.height}`, viewport:`${innerWidth}x${innerHeight}`, touch:('ontouchstart' in window) ? 1 : 0,
+          user_agent:navigator.userAgent};
+}
+async function getRemoteId(){
+  S.msg = t('rWait'); render();
+  try {
+    const r = await (await fetch(REMOTE_URL + '?action=nextId')).json();
+    if (!r.ok) throw new Error(r.error || 'no id');
+    S.pid = r.pid; S.order = r.order; S.setOrder = r.setOrder; S.msg = ''; S.consent = true;
+    S.mod = {...REG.mod}; S.part = {started:new Date().toISOString(), ...deviceInfo()}; S.ans = {};
+    S.screen = M().pre ? 'pre' : 'intro';
+  } catch(err){ S.msg = t('rErr'); }
+  save(); render();
+}
+async function sendData(){
+  S.send = 'sending'; save(); render();
+  try {
+    const body = JSON.stringify({pid:S.pid, participant:partRow(), tasks:S.records, surveys:S.surveys, events:S.events});
+    const r = await (await fetch(REMOTE_URL, {method:'POST', body})).json();   // text/plain → no CORS preflight
+    S.send = r.ok ? 'sent' : 'error';
+  } catch(err){ S.send = 'error'; }
+  save(); render();
+}
+
+/* ---- CSV export */
+function toCSV(rows){ if (!rows.length) return ''; const cols = [...new Set(rows.flatMap(r => Object.keys(r)))], qq = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+  return [cols.join(','), ...rows.map(r => cols.map(c => qq(r[c])).join(','))].join('\n'); }
+function download(name, rows, prefix){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + toCSV(rows)], {type:'text/csv;charset=utf-8'}));
+  a.download = `${prefix || S.pid}_${name}.csv`; a.click(); }
+function downloadSet(d, prefix){
+  [['tasks', d.records], ['events', d.events], ['surveys', d.surveys], ...(d.part ? [['participant', [d.part]]] : [])].forEach(([n, r], i) => setTimeout(() => download(n, r, prefix), i * 300));
+}
+function downloadMerged(){                    // ALL participants in one file per type
+  const all = Object.values(ARCH), stamp = new Date().toISOString().slice(0, 10);
+  downloadSet({records:all.flatMap(d => d.records), events:all.flatMap(d => d.events), surveys:all.flatMap(d => d.surveys), part:null}, 'ALL_' + stamp);
+  setTimeout(() => download('participant', all.map(d => d.part), 'ALL_' + stamp), 1300);
+}
+
+/* =========================================================================
+   15. RENDER
+   ========================================================================= */
+const langSwitch = () => `<div class="lang row" style="gap:4px">${['en','ko'].map(l => `<button class="${S.lang===l?'on':''}" data-act="lang" data-v="${l}">${l.toUpperCase()}</button>`).join('')}</div>`;
+/* one rating row: n points, labels under the end points (or all points), optional N/A */
+function scale(name, n, labels, opts={}){
+  const start = opts.zero ? 0 : 1, cur = S.ans[name];
+  return `<div class="scale ${n > 7 ? 'wide' : ''}">` + Array.from({length:n}, (_, i) => { const v = start + i;
+      return `<label class="${String(cur)===String(v)?'on':''}"><input type="radio" name="${name}" value="${v}" ${String(cur)===String(v)?'checked':''}><b>${v}</b><span>${labels && labels[i] ? labels[i] : ''}</span></label>`; }).join('') +
+    (opts.na ? `<label class="na ${cur==='NA'?'on':''}"><input type="radio" name="${name}" value="NA" ${cur==='NA'?'checked':''}><b>N/A</b><span></span></label>` : '') + `</div>`;
+}
+const qrow = (num, text, control) => `<div class="qrow"><div class="qt">${num ? `<span class="qn">${num}</span>` : ''}${text}</div>${control}</div>`;
+const block = (title, sub, inner) => `<div class="qblock"><h3>${title}</h3>${sub ? `<p class="muted small">${sub}</p>` : ''}${inner}</div>`;
+function surveyPage(){
+  const m = M(); let h = '';
+  if (m.asq) h += block('ASQ', '1 = ' + Q.agree7[S.lang][0] + ' · 7 = ' + Q.agree7[S.lang][6], q('asq').map((x, i) => qrow(i+1, x, scale('asq' + (i+1), 7, Q.agree7[S.lang], {na:true}))).join(''));
+  if (m.sus) h += block('SUS', '1 = ' + Q.agree5[S.lang][0] + ' · 5 = ' + Q.agree5[S.lang][4], q('sus').map((x, i) => qrow(i+1, x, scale('sus' + (i+1), 5, Q.agree5[S.lang]))).join(''));
+  if (m.sat) h += block(q('satQ'), '', scale('sat', 5, Q.sat5[S.lang]));
+  if (m.csuq) h += block('CSUQ', '1 = ' + Q.agree7[S.lang][0] + ' · 7 = ' + Q.agree7[S.lang][6], q('csuq').map((x, i) => qrow(i+1, x, scale('csuq' + (i+1), 7, Q.agree7[S.lang], {na:true}))).join(''));
+  if (m.cards) h += block(q('cardsQ'), `${(S.ans.cards || []).length} / 5`, `<div class="cards">` + CARDS.map(([en, ko]) => { const on = (S.ans.cards || []).includes(en);
+      return `<button class="card-w ${on?'on':''}" data-act="card" data-v="${en}">${S.lang==='ko' ? ko : en}</button>`; }).join('') + `</div>`);
+  if (m.nps) h += block(q('npsQ'), '0 = ' + q('npsL')[0] + ' · 10 = ' + q('npsL')[1], scale('nps', 11, [q('npsL')[0],'','','','','','','','','',q('npsL')[1]], {zero:true}));
+  if (m.open) h += block(q('likeQ'), '', `<textarea data-name="like" rows="2">${S.ans.like || ''}</textarea>`) + block(q('dislikeQ'), '', `<textarea data-name="dislike" rows="2">${S.ans.dislike || ''}</textarea>`);
+  return h;
+}
+/* PIN box – small and quiet, so participants ignore it */
+function pinBox(open){
+  if (!open && !S.pinAsk) return `<div style="text-align:right;margin-top:30px"><button class="ghost" style="padding:6px 10px;color:#9aa8b3;border:0;background:none" data-act="pin-ask">⚙</button></div>`;
+  return `<div class="card" style="margin-top:14px;max-width:360px"><b>Researcher PIN</b><div class="row" style="margin-top:8px">
+    <input id="pin" type="password" inputmode="numeric" style="width:140px"><button class="btn primary" data-act="pin">OK</button>
+    ${open ? '<button class="btn ghost" data-act="to-setup">← Back</button>' : ''}</div><p style="color:var(--red)">${S.msg || ''}</p></div>`;
+}
+/* Researcher data page: summary of all finished participants + downloads */
+function dataPage(){
+  const rows = Object.entries(ARCH).sort();
+  const per = (d, f) => ['A','B','C'].map(m => { const x = d.surveys.find(r => r.interface === m); return x && x[f] !== undefined ? x[f] : '–'; }).join(' / ');
+  const tr = rows.map(([id, d]) => { const ok = d.records.filter(r => r.success === 1).length, tm = d.records.length ? (d.records.reduce((a, r) => a + +r.time_s, 0) / d.records.length).toFixed(1) : '–';
+    const tme = (m) => { const r = d.records.filter(x => x.interface === m); return r.length ? (r.reduce((a, x) => a + +x.time_s, 0) / r.length).toFixed(1) : '–'; };
+    return `<tr><td><b>${id}</b></td><td>${d.part.interface_order} · ${d.part.set_order}</td><td>${ok}/${d.records.length}</td><td>${['A','B','C'].map(tme).join(' / ')}</td>
+      <td>${per(d, 'sus_score')}</td><td>${(d.part.finished || '').slice(0, 16).replace('T', ' ')}</td><td><button class="btn ghost" style="padding:6px 10px" data-act="dl-p" data-v="${id}">⬇ CSV</button></td></tr>`; }).join('');
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2>📊 Data – ${rows.length} participant(s)</h2><button class="btn ghost" data-act="to-setup">← Setup</button></div>
+    <p class="muted small">Saved only on this device/browser. Download a backup after every test day!</p>
+    <button class="btn primary" data-act="dl-merged" ${rows.length ? '' : 'disabled'}>⬇ Download ALL participants (4 merged CSV files)</button>
+    <div style="overflow-x:auto;margin-top:14px"><table class="dtab"><tr><th>ID</th><th>Order</th><th>Success</th><th>Mean time s (A / B / C)</th><th>SUS (A / B / C)</th><th>Finished</th><th></th></tr>${tr || '<tr><td colspan="7" class="muted">No finished participants yet.</td></tr>'}</table></div>
+    <details style="margin-top:16px"><summary class="small">Change PIN</summary><div class="row" style="margin-top:8px"><input id="newpin" type="password" inputmode="numeric" placeholder="new PIN" style="width:140px"><button class="btn ghost" data-act="setpin">Save</button></div></details></div>`;
+}
+function render(){
+  const top = (right='') => `<div class="top"><div><h1>${t('title')}</h1>${S.pid ? `<span class="muted small">ID ${S.pid} · ${S.order} · ${S.setOrder}</span>` : ''}</div><div class="row">${right}${langSwitch()}</div></div>`;
+  const err = `<p style="color:var(--red);font-weight:700">${S.msg || ''}</p>`;
+  const badge = `<span class="badge">${t('intro')} ${S.si+1} / 3</span>`;
+  let h = '';
+  if (REMOTE && S.screen === 'setup'){
+    h = `<div class="top"><h1>${t('rTitle')}</h1>${langSwitch()}</div><div class="card" style="max-width:640px;margin:0 auto">
+      <div style="font-size:46px">🍔</div><h2>${t('rTitle')}</h2><p>${t('rIntro')}</p><div class="task-box" style="font-size:15px;font-weight:600">${t('rTips')}</div>
+      <label class="row" style="align-items:flex-start;flex-wrap:nowrap;margin:14px 0"><input type="checkbox" id="consent" ${S.consent?'checked':''} style="margin-top:4px;width:20px;height:20px"> <span>${t('rConsent')}</span></label>
+      <p style="color:var(--red);font-weight:700">${S.msg || ''}</p><button class="btn primary" data-act="r-start">${t('rStart')}</button></div>`;
+  }
+  else if (REMOTE && S.screen === 'already') h = `<div class="top"><span></span>${langSwitch()}</div><div class="card" style="text-align:center;padding:50px 20px"><div style="font-size:60px">🙏</div><h2>${t('rAlready')}</h2></div>`;
+  else if (S.screen === 'setup'){
+    const opt = (id) => { const u = REG.used[id]; return `<option value="${id}" ${u ? 'disabled' : ''} ${S.pid===id?'selected':''}>${id}${u === 'done' ? '  ✓ done' : u ? '  … started' : ''}</option>`; };
+    h = top() + `<div class="card"><h2>${t('setup')}</h2>
+      ${saved && saved.pid && saved.screen !== 'done' ? `<div class="task-box" style="font-size:15px">${t('resume')} (ID ${saved.pid})<div class="row" style="margin-top:8px">
+        <button class="btn primary" data-act="resume">${t('continue')}</button><button class="btn danger" data-act="reset">${t('reset')}</button></div></div>` : ''}
+      <div class="grid g3" style="gap:14px">
+        <div class="field"><label>${t('pid')}</label><select id="pid" data-act-change="pid"><option value="">—</option>${IDS.map(opt).join('')}</select></div>
+        <div class="field"><label>${t('order')} (auto)</label><select id="order">${ORDERS.map(o => `<option ${o===S.order?'selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="field"><label>${t('setOrder')} (auto)</label><select id="setOrder">${SET_ORDERS.map(o => `<option ${o===S.setOrder?'selected':''}>${o}</option>`).join('')}</select></div></div>
+      <details style="margin:6px 0 14px"><summary><b>Questionnaires</b> <span class="muted small">(researcher – same for every participant)</span></summary>
+        <div class="mods">${Object.entries(MODULES).map(([k2, l]) => `<label><input type="checkbox" data-mod="${k2}" ${REG.mod[k2]?'checked':''}> ${l}</label>`).join('')}</div></details>
+      <details style="margin:0 0 14px"><summary><b>Used IDs</b> <span class="muted small">(${Object.keys(REG.used).length})</span></summary>
+        <div class="row" style="margin-top:8px">${Object.entries(REG.used).map(([id, st]) => `<span class="badge">${id} · ${st} <button class="x" data-act="release" data-v="${id}" title="release">✕</button></span>`).join('') || '<span class="muted small">–</span>'}</div>
+        <p class="muted small">✕ = release an ID (only if the session was cancelled and no data is kept).</p></details>
+      <label class="row"><input type="checkbox" id="consent" ${S.consent?'checked':''}> ${t('consent')}</label>${err}
+      <button class="btn primary" data-act="start">${t('start')}</button>
+      <p style="margin-top:16px"><button class="btn ghost" data-act="data">📊 Data (researcher, PIN)</button></p></div>`;
+  }
+  else if (S.screen === 'pre') h = top() + `<div class="card"><h2>${t('preTitle')}</h2>
+      ${qrow('', q('ageQ'), `<input type="number" min="15" max="99" data-name="age" value="${S.ans.age || ''}" style="width:120px">`)}
+      ${qrow('', q('genderQ'), `<div class="chips">${q('genderO').map((g, i) => `<button class="chip ${S.ans.gender===Q.genderO.en[i]?'on':''}" data-act="pick" data-n="gender" data-v="${Q.genderO.en[i]}">${g}</button>`).join('')}</div>`)}
+      ${qrow('', q('freqQ'), `<div class="chips">${q('freqO').map((g, i) => `<button class="chip ${S.ans.freq===Q.freqO.en[i]?'on':''}" data-act="pick" data-n="freq" data-v="${Q.freqO.en[i]}">${g}</button>`).join('')}</div>`)}
+      ${qrow('', q('confQ'), scale('conf', 5, Q.conf5[S.lang]))}${err}<button class="btn primary" data-act="submit">${t('next')}</button></div>`;
+  else if (S.screen === 'intro') h = top() + `<div class="card">${badge}<h2 style="margin-top:10px">${t('intro')} ${S.si+1}</h2>
+    <p>${t('introText')}</p><button class="btn primary" data-act="go">${t('go')}</button></div>`;
+  else if (S.screen === 'task') h = top() + `<div class="card"><span class="badge">${t('intro')} ${S.si+1}/3 · ${t('task')} ${S.ti+1}/3</span>
+    <div class="task-box">${task()[S.lang]}</div>
+    ${M().exp ? block(q('expQ'), '', scale('exp', 7, Q.ease7[S.lang])) : ''}${err}
+    <button class="btn primary" data-act="submit">${t('startTask')}</button></div>`;
+  else if (S.screen === 'kiosk') h = top(`<button class="btn danger small" data-act="skip">${REMOTE ? t('giveUp') : t('skip')}</button>`) +
+    `<div class="study"><div class="task-box"><div class="small muted">${t('taskHint')} · ${t('task')} ${S.ti+1}/3</div>${task()[S.lang]}</div>
+     <div class="device"><div class="screen">${({A:kioskA, B:kioskB, C:kioskC})[mode()]()}</div></div></div>`;
+  else if (S.screen === 'seq') h = top() + `<div class="card"><span class="badge">${t('intro')} ${S.si+1}/3 · ${t('task')} ${S.ti+1}/3</span>
+    ${block(q('seqQ'), '', scale('seq', 7, Q.ease7[S.lang]))}${err}<button class="btn primary" data-act="submit">${t('next')}</button></div>`;
+  else if (S.screen === 'survey') h = top() + `<div class="card">${badge}<h2 style="margin-top:10px">${t('survey')}</h2><p class="muted">${t('susIntro')}</p>
+    ${surveyPage()}${err}<button class="btn primary" data-act="submit">${t('submit')}</button></div>`;
+  else if (S.screen === 'final') h = top() + `<div class="card"><h2>${t('finalTitle')}</h2>
+    ${['best','worst'].map(n => block(q(n + 'Q'), '', `<div class="chips">${q('kioskN').map((l, i) => `<button class="chip ${String(S.ans[n])===String(i)?'on':''}" data-act="pick" data-n="${n}" data-v="${i}">${l}</button>`).join('')}</div>`)).join('')}
+    ${block(q('whyQ'), '', `<textarea data-name="why" rows="3">${S.ans.why || ''}</textarea>`)}${err}<button class="btn primary" data-act="submit">${t('submit')}</button></div>`;
+  else if (REMOTE && S.screen === 'done') h = `<div class="top"><span></span>${langSwitch()}</div><div class="card" style="text-align:center;padding:50px 20px">
+    <div style="font-size:60px">${S.send === 'sent' ? '🙏' : S.send === 'error' ? '⚠️' : '⏳'}</div><h2>${t('done')}</h2>
+    <p>${S.send === 'sent' ? t('rSent') : S.send === 'error' ? t('rErr') : t('rSending')}</p>
+    ${S.send === 'error' ? `<button class="btn primary" data-act="resend">${t('rRetry')}</button>` : ''}</div>`;
+  else if (S.screen === 'done') h = `<div class="top"><span></span>${langSwitch()}</div><div class="card" style="text-align:center;padding:50px 20px">
+    <div style="font-size:60px">🙏</div><h2>${t('done')}</h2><p>${t('doneText')}</p></div>
+    ${unlocked ? `<div class="card" style="margin-top:14px"><h2>🔓 Researcher</h2><p class="muted small">Data of ${S.pid} is saved on this device automatically.</p>
+      <div class="row"><button class="btn primary" data-act="dl-one">${t('dlAll')}</button><button class="btn ghost" data-act="data">📊 All data</button>
+      <button class="btn danger" data-act="new">${t('newP')}</button></div></div>` : pinBox()}`;
+  else if (S.screen === 'data') h = top() + (unlocked ? dataPage() : `<div class="card">${pinBox(true)}</div>`);
+  document.getElementById('app').innerHTML = h;
+}
+
+/* ---- events */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const act = b.dataset.act, v = b.dataset.v;
+  if (act === 'lang') S.lang = v;
+  else if (act === 'resume'){ S = saved; saved = null; }
+  else if (act === 'reset'){ try { localStorage.removeItem(STORE); } catch(err) {} saved = null; S = freshState(); }
+  else if (act === 'release'){ delete REG.used[v]; saveReg(); }
+  else if (act === 'start'){
+    S.pid = document.getElementById('pid').value; S.order = document.getElementById('order').value;
+    S.setOrder = document.getElementById('setOrder').value; S.consent = document.getElementById('consent').checked;
+    if (!S.pid || !S.consent || REG.used[S.pid]) S.msg = !S.pid || REG.used[S.pid] ? t('pid') + '?' : t('consent') + '?';
+    else { S.msg = ''; saved = null; S.mod = {...REG.mod}; S.part = {started:new Date().toISOString()}; S.ans = {};
+           REG.used[S.pid] = 'started'; saveReg(); S.screen = M().pre ? 'pre' : 'intro'; }
+  }
+  else if (act === 'go') S.screen = 'task';
+  else if (act === 'skip') finishTask(true);
+  else if (act === 'submit') submit();
+  else if (act === 'pick'){ S.ans[b.dataset.n] = v; }
+  else if (act === 'card'){ const c = S.ans.cards = S.ans.cards || []; const i = c.indexOf(v); if (i >= 0) c.splice(i, 1); else if (c.length < 5) c.push(v); }
+  else if (act === 'r-start'){ if (!document.getElementById('consent').checked){ S.msg = t('rConsent').split('.')[0] + ' ✓ ?'; } else { S.consent = true; getRemoteId(); return; } }
+  else if (act === 'resend'){ sendData(); return; }
+  else if (act === 'pin-ask'){ S.pinAsk = true; S.msg = ''; }
+  else if (act === 'pin'){ if (document.getElementById('pin').value === PIN()){ unlocked = true; S.pinAsk = false; S.msg = ''; } else S.msg = 'Wrong PIN'; }
+  else if (act === 'data'){ S.back = S.screen; S.msg = ''; S.screen = 'data'; }
+  else if (act === 'to-setup'){ S.screen = S.back === 'done' ? 'done' : 'setup'; S.msg = ''; }
+  else if (act === 'dl-one' && unlocked) downloadSet({records:S.records, events:S.events, surveys:S.surveys, part:partRow()});
+  else if (act === 'dl-p' && unlocked) downloadSet(ARCH[v], v);
+  else if (act === 'dl-merged' && unlocked) downloadMerged();
+  else if (act === 'setpin' && unlocked){ const p = document.getElementById('newpin').value.trim(); if (p){ REG.pin = p; saveReg(); } }
+  else if (act === 'new' && unlocked){ const lang = S.lang; S = freshState(); S.lang = lang; unlocked = false; try { localStorage.removeItem(STORE); } catch(err) {} }
+  else if (S.screen === 'kiosk') onKiosk(act, v);
+  save(); render();
+});
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.type === 'radio'){ S.ans[el.name] = el.value === 'NA' ? 'NA' : +el.value; save(); render(); }
+  else if (el.dataset.mod){ REG.mod[el.dataset.mod] = el.checked; saveReg(); }
+  else if (el.id === 'pid'){ S.pid = el.value; assign(el.value); render(); }
+});
+document.addEventListener('input', (e) => { const n = e.target.dataset.name; if (n){ S.ans[n] = e.target.value; save(); } });
+/* ONLINE mode start: continue an unfinished session, re-send unsent data, block a second participation */
+if (REMOTE && saved && saved.pid){
+  if (saved.screen === 'done' && saved.send === 'sent') S.screen = 'already';
+  else { S = saved; saved = null; if (S.screen === 'done' && S.send !== 'sent') sendData(); }
+}
+render();
+</script>
+</body>
+</html>
