@@ -153,6 +153,8 @@
    ========================================================================= */
 const REMOTE_URL = 'https://script.google.com/macros/s/AKfycbzQRQRBCzapkWkmnYJd8Sx3X1NxO_JFj4TcA5JdrUq3f1kKDEMw0bklqxRi17vkA7Vfew/exec';
 const REMOTE = !!REMOTE_URL;
+/* Questionnaires in ONLINE mode (short version, ~10–15 min). true = shown */
+const REMOTE_MOD = {pre:true, exp:false, seq:true, asq:false, sus:true, sat:true, csuq:false, cards:false, nps:false, open:false, final:true};
 /* =========================================================================
    1. TEXTS (English + Korean)
    ========================================================================= */
@@ -170,7 +172,7 @@ const TEXT = {
   b1:'Burger', b2:'Customize', b3:'Meal', b4:'Side', b5:'Drink', b6:'Dessert', b7:'Review',
   pickBurger:'Step 1 – Choose your burger', addSide:'Would you like to add a side?', addDrink:'Would you like to add a drink?', addDessert:'Would you like to add a dessert?',
   anotherMenu:'+ Add another burger', without:'no', extra:'extra', eatInL:'Eat in', takeOutL:'Take out',
-  rTitle:'Kiosk Ordering Study', rIntro:'Thank you for helping with our university study (UX & Usability, Hanyang University ERICA, Team 2). You will order food with three different self-ordering kiosks (3 short tasks each) and answer short questionnaires. This takes about 25–30 minutes.',
+  rTitle:'Kiosk Ordering Study', rIntro:'Thank you for helping with our university study (UX & Usability, Hanyang University ERICA, Team 2). You will order food with three different self-ordering kiosks (3 short tasks each) and answer short questionnaires. This takes about 10–15 minutes.',
   rTips:'Please: do it in one go without breaks · use the same device the whole time · there is no real payment · it is not a test of you, we test the kiosks.',
   rConsent:'I agree to take part. My answers and my taps are recorded anonymously and are only used for this university project. I can stop at any time.',
   rStart:'Start', rWait:'Connecting …', rErr:'Connection problem. Please check your internet and try again.', rSending:'Saving your answers … please do not close this page.',
@@ -193,7 +195,7 @@ const TEXT = {
   b1:'버거', b2:'재료', b3:'구성', b4:'사이드', b5:'음료', b6:'디저트', b7:'확인',
   pickBurger:'1단계 – 버거를 선택하세요', addSide:'사이드를 추가하시겠어요?', addDrink:'음료를 추가하시겠어요?', addDessert:'디저트를 추가하시겠어요?',
   anotherMenu:'+ 버거 추가 주문', without:'빼기', extra:'추가', eatInL:'매장', takeOutL:'포장',
-  rTitle:'키오스크 주문 실험', rIntro:'대학 연구(한양대학교 ERICA UX & Usability, 2팀)에 참여해 주셔서 감사합니다. 세 가지 셀프 주문 키오스크로 음식을 주문하고(각각 짧은 과업 3개) 간단한 설문에 응답합니다. 약 25–30분이 소요됩니다.',
+  rTitle:'키오스크 주문 실험', rIntro:'대학 연구(한양대학교 ERICA UX & Usability, 2팀)에 참여해 주셔서 감사합니다. 세 가지 셀프 주문 키오스크로 음식을 주문하고(각각 짧은 과업 3개) 간단한 설문에 응답합니다. 약 10–15분이 소요됩니다.',
   rTips:'부탁드립니다: 쉬지 않고 한 번에 진행해 주세요 · 처음부터 끝까지 같은 기기를 사용해 주세요 · 실제 결제는 없습니다 · 여러분을 평가하는 것이 아니라 키오스크를 평가합니다.',
   rConsent:'실험 참여에 동의합니다. 저의 응답과 터치 기록은 익명으로 저장되며 이 대학 과제에만 사용됩니다. 언제든지 중단할 수 있습니다.',
   rStart:'시작하기', rWait:'연결 중 …', rErr:'연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.', rSending:'응답을 저장하는 중입니다 … 이 페이지를 닫지 마세요.',
@@ -699,7 +701,7 @@ async function getRemoteId(){
     const r = await (await fetch(REMOTE_URL + '?action=nextId')).json();
     if (!r.ok) throw new Error(r.error || 'no id');
     S.pid = r.pid; S.order = r.order; S.setOrder = r.setOrder; S.msg = ''; S.consent = true;
-    S.mod = {...REG.mod}; S.part = {started:new Date().toISOString(), ...deviceInfo()}; S.ans = {};
+    S.mod = {...REMOTE_MOD}; S.part = {started:new Date().toISOString(), ...deviceInfo()}; S.ans = {};
     S.screen = M().pre ? 'pre' : 'intro';
   } catch(err){ S.msg = t('rErr'); }
   save(); render();
@@ -775,7 +777,7 @@ function dataPage(){
     <details style="margin-top:16px"><summary class="small">Change PIN</summary><div class="row" style="margin-top:8px"><input id="newpin" type="password" inputmode="numeric" placeholder="new PIN" style="width:140px"><button class="btn ghost" data-act="setpin">Save</button></div></details></div>`;
 }
 function render(){
-  const top = (right='') => `<div class="top"><div><h1>${t('title')}</h1>${S.pid ? `<span class="muted small">ID ${S.pid} · ${S.order} · ${S.setOrder}</span>` : ''}</div><div class="row">${right}${langSwitch()}</div></div>`;
+  const top = (right='') => `<div class="top"><div><h1>${t('title')}</h1>${S.pid && !REMOTE ? `<span class="muted small">ID ${S.pid} · ${S.order} · ${S.setOrder}</span>` : ''}</div><div class="row">${right}${langSwitch()}</div></div>`;
   const err = `<p style="color:var(--red);font-weight:700">${S.msg || ''}</p>`;
   const badge = `<span class="badge">${t('intro')} ${S.si+1} / 3</span>`;
   let h = '';
